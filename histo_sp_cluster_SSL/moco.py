@@ -152,5 +152,58 @@ class MoCoSuperpixelCluster(MoCoV2Encoder):
 
         self.queue_ptr[0] = (ptr + total) % self.queue.size(0)    
 
+class MoCoSuperpixelClusterBioptimus(MoCoV2Encoder):
+    def __init__(self, base_encoder, output_dim, queue_size, momentum, temperature, num_clusters, device):
+        super().__init__(base_encoder, output_dim, queue_size, momentum, temperature)
+        self.cluster_helper = ClusterNSMoCo(num_clusters, output_dim, device)
+        self.register_buffer("queue_cluster_ids", torch.zeros(queue_size, dtype=torch.long))
 
+    def forward(self, x_q, x_k1, x_k2, step=None, update_step=None):
+        q = F.normalize(self.encoder_q(x_q), dim=1)
+        with torch.no_grad():
+            self._momentum_update_key_encoder()
+            k1 = F.normalize(self.encoder_k(x_k1), dim=1)
+            k2 = F.normalize(self.encoder_k(x_k2), dim=1)
+
+        if step is not None and update_step is not None and self.queue.shape[0] > self.cluster_helper.num_clusters:
+            self.cluster_helper.update_centroids(self.queue, step, update_step)
+
+        if self.cluster_helper.initialized:
+            q_cluster_ids, _ = self.cluster_helper.assign_to_centroids(q)
+            k1_cluster_ids, _ = self.cluster_helper.assign_to_centroids(k1)
+            k2_cluster_ids, _ = self.cluster_helper.assign_to_centroids(k2)
+
+            negs = self.cluster_helper.get_negatives_by_cluster(q, self.queue)
+            false_negatives_em = negs["false_negative_embeddings"]
+            hard_negatives_em = negs["hard_negative_embeddings"]
+            false_negatives_in = negs["false_negative_indices"]
+            hard_negatives_in = negs["hard_negative_indices"]
+
+        else:
+            q_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
+            k1_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
+            k2_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
+            false_negatives = [torch.tensor([], dtype=torch.long, device=self.device)] * q.size(0)
+            hard_negatives = [torch.tensor([], dtype=torch.long, device=self.device)] * q.size(0)
+
+        return q, k1, k2, false_negatives_em, hard_negatives_em, false_negatives_in, hard_negatives_in, q_cluster_ids, k1_cluster_ids, k2_cluster_ids, self.queue
+
+    def update_queue(self, keys, neighbor_keys, keys_id, neighbor_keys_id):
+        combined_keys = torch.cat([keys, neighbor_keys], dim=0)
+        combined_ids = torch.cat([keys_id, neighbor_keys_id], dim=0)
+        ptr = int(self.queue_ptr)
+        total = combined_keys.size(0)
+        end_ptr = ptr + total
+
+        if end_ptr <= self.queue.size(0):
+            self.queue[ptr:end_ptr, :] = combined_keys
+            self.queue_cluster_ids[ptr:end_ptr] = combined_ids
+        else:
+            first = self.queue.size(0) - ptr
+            self.queue[ptr:] = combined_keys[:first]
+            self.queue[:end_ptr % self.queue.size(0)] = combined_keys[first:]
+            self.queue_cluster_ids[ptr:] = combined_ids[:first]
+            self.queue_cluster_ids[:end_ptr % self.queue.size(0)] = combined_ids[first:]
+
+        self.queue_ptr[0] = (ptr + total) % self.queue.size(0)   
 

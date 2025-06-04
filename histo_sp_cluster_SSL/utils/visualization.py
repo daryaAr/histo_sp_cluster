@@ -119,16 +119,19 @@ def plot_loss_curve(losses, save_path, title="Training Loss Curve"):
     plt.savefig(save_path)
     plt.close()  
 
-def plot_live_losses(x_labels, losses_all, contrastive_losses, fn_losses, neighbor_losses, save_dir,epoch, batch_idx):
+def plot_live_losses(losses_all, contrastive_losses, fn_losses, neighbor_losses, save_dir, epoch, batch_idx, max_points=800):
     plt.figure(figsize=(10, 6))
-    x_range = range(len(x_labels))
-    plt.plot(x_range, losses_all, label="Total Loss", marker='o')
-    plt.plot(x_range, contrastive_losses, label="Contrastive Loss", marker='x')
-    plt.plot(x_range, fn_losses, label="False Negative Loss", marker='s')
-    plt.plot(x_range, neighbor_losses, label="Neighbor Loss", marker='^')
+    
+    # Keep only the last max_points entries
+    start_idx = max(0, len(losses_all) - max_points)
+    
+    x_range = range(start_idx, len(losses_all))
+    plt.plot(x_range, losses_all[start_idx:], label="Total Loss", marker='o')
+    plt.plot(x_range, contrastive_losses[start_idx:], label="Contrastive Loss", marker='x')
+    plt.plot(x_range, fn_losses[start_idx:], label="False Negative Loss", marker='s')
+    plt.plot(x_range, neighbor_losses[start_idx:], label="Neighbor Loss", marker='^')
 
-    plt.xticks(ticks=x_range, labels=x_labels, rotation=45, fontsize=7)
-    plt.xlabel("Epoch_Batch")
+    plt.xlabel("Batch Index")
     plt.ylabel("Loss")
     plt.title(f"Loss Breakdown - Epoch {epoch}, Batch {batch_idx}")
     plt.legend()
@@ -137,4 +140,4 @@ def plot_live_losses(x_labels, losses_all, contrastive_losses, fn_losses, neighb
 
     save_path = os.path.join(save_dir, f"loss_{epoch}_{batch_idx}.png")
     plt.savefig(save_path)
-    plt.close()          
+    plt.close("all")          

@@ -137,20 +137,21 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
 
                 running_loss += loss.item()
                 num_batches += 1
+
+                torch.cuda.empty_cache()
                 
 
                 if (cfg.model.moco_type == "moco_superpixel_cluster") and (step+1 > warm_up_step):
-                    label = f"{epoch+1}_{batch_idx+1}"
-                    x_labels.append(label)
+                    
+                    
                     losses_all.append(loss.item())
                     contrastive_losses.append(contrastive_loss.item())
                     fn_losses.append(fn_loss.item())
                     neighbor_losses.append(neighbor_loss.item())
 
                     # Plot live loss every 200 batches
-                    if (batch_idx + 1) % 400 == 0:
+                    if (step + 1) % 400 == 0:
                         plot_live_losses(
-                            x_labels=x_labels,
                             losses_all=losses_all,
                             contrastive_losses=contrastive_losses,
                             fn_losses=fn_losses,
@@ -177,23 +178,20 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
             logger.info(f"Epoch {epoch + 1}/{cfg.training.epochs}, Batch {batch_idx + 1}/{len(dataloader)}")
 
             data_start_time = time.perf_counter()
-            if batch_idx+1 == 20:
-                break
+            #if batch_idx+1 == 20:
+              #  break
 
         avg_epoch_loss = running_loss / num_batches if num_batches > 0 else float("inf")
         loss_log.append(avg_epoch_loss)
         writer.add_scalar("Loss/train", avg_epoch_loss, epoch)
 
-        save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.model_save_dir, f"epoch_{epoch}.pth"))
+        save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.save_model_dir, f"epoch_{epoch}.pth"))
         save_losses(loss_log, cfg.paths.loss_curve_dir)
 
-        if (epoch + 1) % 5 == 0:
-            save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step,
-                            os.path.join(cfg.paths.checkpoint_dir, f"checkpoint_epoch_{epoch+1}.pth"))
-            if avg_epoch_loss < best_loss:
-                best_loss = avg_epoch_loss
-                save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step,
-                                os.path.join(cfg.paths.checkpoint_dir, "best_model.pth"), best=True)
+       
+        if avg_epoch_loss < best_loss:
+            best_loss = avg_epoch_loss
+            save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.best_model_dir, f"best_model.pth"), best=True)
 
     writer.close()
 

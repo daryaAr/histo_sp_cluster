@@ -23,9 +23,9 @@ training:
   update_step: 50
   resume_checkpoint: false
   seed: 42
-  num_workers: 28
+  num_workers: 16
   pin_memory: true
-  prefetch_factor: 4
+  prefetch_factor: 2
 
 #paths:
  # output_base: reports/  # base output folder for all plots and reports
@@ -34,7 +34,7 @@ logging:
   log_interval: 10
 
 cluster:
-  cluster_type: cluster_resnet  # no_cluster, cluster_resnet, cluster_bioptimus, cluster_uni
+  cluster_type: cluster_bioptimus  # no_cluster, cluster_resnet, cluster_bioptimus, cluster_uni
 
 loss:
   type: cluster # cluster, contrastive  

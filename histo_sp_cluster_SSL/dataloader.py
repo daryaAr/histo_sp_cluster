@@ -116,12 +116,72 @@ class SuperpixelMoCoDatasetNeighbor(Dataset):
 
         return anchor_1, anchor_2, neighbor
 
+class SuperpixelMoCoDatasetNeighborCluster(Dataset):
+    """
+    Dataset for MoCo training using superpixels, returns images and their cluster info.
+    Each item returns:
+        (anchor_1, anchor_2, neighbor, anchor_clusters, neighbor_clusters)
+    """
+
+    def __init__(self, cfg, transform=None):
+        with open(cfg.paths.json_path, "r") as f:
+            self.superpixel_list = json.load(f)
+
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.superpixel_list)
+
+    def _load_image(self, path):
+        with open(path, "rb") as f:
+            img = pyspng.load(f.read())
+        return Image.fromarray(img).convert("RGB")
+
+    def __getitem__(self, idx):
+        group = self.superpixel_list[idx]
+        tile_entries = group["tiles"]
+
+        anchor = random.choice(tile_entries)
+        neighbor = random.choice(tile_entries)
+
+        anchor_img = self._load_image(anchor["tile_path"])
+        neighbor_img = self._load_image(neighbor["tile_path"])
+
+        if self.transform:
+            anchor_1 = self.transform(anchor_img)
+            anchor_2 = self.transform(anchor_img)
+            neighbor = self.transform(neighbor_img)
+
+        anchor_clusters = (
+            anchor["primary_cluster"],
+            anchor["second_cluster"],
+            anchor["third_cluster"]
+        )
+        neighbor_clusters = (
+            neighbor["primary_cluster"],
+            neighbor["second_cluster"],
+            neighbor["third_cluster"]
+        )
+
+        return anchor_1, anchor_2, neighbor, anchor_clusters, neighbor_clusters        
+
 
 def get_dataloader(cfg, use_neighbors=False):
     """
     Returns a PyTorch DataLoader for MoCo training.
     """
-    dataset_cls = SuperpixelMoCoDatasetNeighbor if use_neighbors else SuperpixelMoCoDataset
+    #dataset_cls = SuperpixelMoCoDatasetNeighbor if use_neighbors else SuperpixelMoCoDataset
+    if use_neighbors:
+        if cfg.cluster_type == "cluster_bioptimus":
+            dataset_cls = SuperpixelMoCoDatasetNeighborCluster
+        else:
+            dataset_cls = SuperpixelMoCoDatasetNeighbor
+    else:
+        dataset_cls = SuperpixelMoCoDataset
+
+
+
+
     transform = get_moco_v2_augmentations()
     dataset = dataset_cls(cfg, transform=transform)
     train_loader = DataLoader(

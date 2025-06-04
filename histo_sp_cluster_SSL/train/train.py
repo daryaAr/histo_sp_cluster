@@ -103,7 +103,7 @@ if __name__ == "__main__":
     )
     neighbor = input(f"Using neighbors in Superpixel (yes/no, default {'yes' if cfg.training.use_neighbors else 'no'}): ").strip().lower()
     if neighbor:
-        cfg.training.use_neighbors = True if resume == "yes" else False
+        cfg.training.use_neighbors = True if neighbor == "yes" else False
 
     cfg.training.device = safe_input("Enter device (cuda:0 / cuda:1)", cfg.training.get("device", "cuda:0"), str)
     cfg.training.batch_size = safe_input("Enter batch size", cfg.training.batch_size, int)
@@ -135,6 +135,8 @@ if __name__ == "__main__":
     os.makedirs(cfg.paths.model_save_dir, exist_ok=True)
     os.makedirs(cfg.paths.checkpoint_dir, exist_ok=True)
   
+    cfg.paths.save_model_dir = os.path.join(cfg.paths.model_save_dir, run_name)
+    cfg.paths.best_model_dir = os.path.join(cfg.paths.checkpoint_dir, run_name)
     cfg.paths.plot_dir = os.path.join(cfg.paths.output_base, "training_loss", run_name)
     cfg.paths.tensorboard_dir = os.path.join(cfg.paths.output_base, "tensorboard", run_name)
     cfg.paths.umap_dir = os.path.join(cfg.paths.output_base, "figures", "queue_umaps_training", run_name)
@@ -143,7 +145,7 @@ if __name__ == "__main__":
     cfg.paths.csv_report_dir = os.path.join(cfg.paths.output_base, "training_csv_reports", run_name)
 
     for p in [
-        cfg.paths.plot_dir,
+        cfg.paths.plot_dir, cfg.paths.save_model_dir, cfg.paths.best_model_dir,
         cfg.paths.tensorboard_dir, cfg.paths.umap_dir,
         cfg.paths.loss_curve_dir, cfg.paths.live_loss_plot_dir, cfg.paths.csv_report_dir
     ]:

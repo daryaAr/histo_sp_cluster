@@ -59,9 +59,10 @@ def save_checkpoint(epoch, model, optimizer, scaler, base_lr, step, checkpoint_p
     #logger.info(f"Checkpoint saved: {checkpoint_path}")
 
     if best:
-        best_path = os.path.join(CHECKPOINT_SAVE_DIR, "superpixel_org_best_model.pth")
-        torch.save(checkpoint, best_path)
+        torch.save(checkpoint, checkpoint_path)
         #logger.info(f"New best model saved: {best_path}")
+    else:
+        torch.save(checkpoint, checkpoint_path)  
 
 def get_latest_checkpoint(checkpoint_dir):
     checkpoints = sorted(glob.glob(os.path.join(checkpoint_dir, "superpixel_org_*.pth")), key=os.path.getmtime, reverse=True)
