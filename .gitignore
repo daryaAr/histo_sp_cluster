@@ -187,3 +187,5 @@ cython_debug/
 
 # Local/private configs
 configs/local.yaml
+
+reports

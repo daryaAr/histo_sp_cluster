@@ -184,16 +184,14 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
         loss_log.append(avg_epoch_loss)
         writer.add_scalar("Loss/train", avg_epoch_loss, epoch)
 
-        save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.model_save_dir, f"epoch_{epoch}.pth"))
+        save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.save_model_dir, f"epoch_{epoch}.pth"))
         save_losses(loss_log, cfg.paths.loss_curve_dir)
-
-        if (epoch + 1) % 5 == 0:
+        
+        if avg_epoch_loss < best_loss:
+            best_loss = avg_epoch_loss
+            #best_ epoch = epoch+1
             save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step,
-                            os.path.join(cfg.paths.checkpoint_dir, f"checkpoint_epoch_{epoch+1}.pth"))
-            if avg_epoch_loss < best_loss:
-                best_loss = avg_epoch_loss
-                save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step,
-                                os.path.join(cfg.paths.checkpoint_dir, "best_model.pth"), best=True)
+                            os.path.join(cfg.paths.best_model_dir, "best_model.pth"), best=True)
 
     writer.close()
 
