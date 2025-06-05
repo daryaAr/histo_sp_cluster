@@ -121,6 +121,6 @@ class ClusterLoss(nn.Module):
         #bml_nb_term = torch.stack(bml_nb).mean() if bml_nb else torch.tensor(0.0, device=q.device)
         #total_bml = 0.5 * self.lambda_bml * (bml_fn_term + bml_nb_term)
         total_bml = 0.5 * self.lambda_bml * (bml_fn_term + contrastive_loss_neighbor)
-        tot_loss = contrastive_loss + total_bml
+        tot_loss = (1 - self.lambda_bml)*contrastive_loss + total_bml
 
         return tot_loss, contrastive_loss, bml_fn_term, contrastive_loss_neighbor

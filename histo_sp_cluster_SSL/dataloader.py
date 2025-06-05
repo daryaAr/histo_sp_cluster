@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 import random
 import json
 import pyspng
+import torch
 
 
 class TwoCropsTransform:
@@ -33,11 +34,11 @@ class GaussianBlur:
         sigma = random.uniform(self.sigma[0], self.sigma[1])
         return x.filter(ImageFilter.GaussianBlur(radius=sigma))
 
-
+"""
 def get_moco_v2_augmentations():
-    """
+    
     Returns the MoCo v2 augmentation pipeline.
-    """
+    
     return transforms.Compose([
         transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),
         transforms.RandomHorizontalFlip(),
@@ -48,6 +49,21 @@ def get_moco_v2_augmentations():
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
     ])
+"""
+
+def get_histo_moco_augmentations():
+    return transforms.Compose([
+        transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
+        transforms.RandomAffine(degrees=10, translate=(0.05, 0.05), scale=(0.95, 1.05)),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05),
+        GaussianBlur(sigma=[0.1, 2.0]),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
 
 
 class SuperpixelMoCoDataset(Dataset):
@@ -124,7 +140,7 @@ class SuperpixelMoCoDatasetNeighborCluster(Dataset):
     """
 
     def __init__(self, cfg, transform=None):
-        with open(cfg.paths.json_path, "r") as f:
+        with open(cfg.paths.bioptimus_json, "r") as f:
             self.superpixel_list = json.load(f)
 
         self.transform = transform
@@ -148,9 +164,9 @@ class SuperpixelMoCoDatasetNeighborCluster(Dataset):
         neighbor_img = self._load_image(neighbor["tile_path"])
 
         if self.transform:
-            anchor_1 = self.transform(anchor_img)
-            anchor_2 = self.transform(anchor_img)
-            neighbor = self.transform(neighbor_img)
+            img_q = self.transform(anchor_img)
+            img_k1 = self.transform(anchor_img)
+            img_k2 = self.transform(neighbor_img)
 
         anchor_clusters = (
             anchor["primary_cluster"],
@@ -163,7 +179,7 @@ class SuperpixelMoCoDatasetNeighborCluster(Dataset):
             neighbor["third_cluster"]
         )
 
-        return anchor_1, anchor_2, neighbor, anchor_clusters, neighbor_clusters        
+        return img_q, img_k1, img_k2, torch.tensor(anchor_clusters, dtype=torch.long), torch.tensor(neighbor_clusters, dtype=torch.long)        
 
 
 def get_dataloader(cfg, use_neighbors=False):
@@ -172,7 +188,7 @@ def get_dataloader(cfg, use_neighbors=False):
     """
     #dataset_cls = SuperpixelMoCoDatasetNeighbor if use_neighbors else SuperpixelMoCoDataset
     if use_neighbors:
-        if cfg.cluster_type == "cluster_bioptimus":
+        if cfg.cluster.cluster_type == "cluster_bioptimus":
             dataset_cls = SuperpixelMoCoDatasetNeighborCluster
         else:
             dataset_cls = SuperpixelMoCoDatasetNeighbor
@@ -182,7 +198,7 @@ def get_dataloader(cfg, use_neighbors=False):
 
 
 
-    transform = get_moco_v2_augmentations()
+    transform = get_histo_moco_augmentations()
     dataset = dataset_cls(cfg, transform=transform)
     train_loader = DataLoader(
         dataset,

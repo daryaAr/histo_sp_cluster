@@ -10,7 +10,8 @@ from histo_sp_cluster_SSL.Loss import ClusterLoss, ContrastiveLoss
 from histo_sp_cluster_SSL.moco import (
     MoCoV2Encoder,
     MoCoSuperpixel,
-    MoCoSuperpixelCluster
+    MoCoSuperpixelCluster,
+    MoCoSuperpixelClusterBioptimus
 )
 from histo_sp_cluster_SSL.utils.training_utils import (
     adjust_learning_rate, update_template_csv, save_checkpoint,
@@ -26,6 +27,7 @@ def get_model(cfg):
         "moco_v2": MoCoV2Encoder,
         "moco_superpixel": MoCoSuperpixel,
         "moco_superpixel_cluster": MoCoSuperpixelCluster,
+        "moco_superpixel_cluster_bioptimus": MoCoSuperpixelClusterBioptimus
     }
 
     model_type = cfg.model.moco_type.lower()
@@ -79,12 +81,12 @@ if __name__ == "__main__":
 
     cfg.cluster.cluster_type = safe_input(
         "Enter cluster type (no_cluster/ cluster_resnet/ cluster_bioptimus/ cluster_uni)",
-        cfg.cluster.get("cluster_type", "cluster_resnet"),
+        cfg.cluster.get("cluster_type", "cluster_bioptimus"),
         str
     )
     cfg.model.moco_type = safe_input(
-        "Enter MoCo type (moco_v2 / moco_superpixel / moco_superpixel_cluster)",
-        cfg.model.get("moco_type", "moco_superpixel_cluster"),
+        "Enter MoCo type (moco_v2 / moco_superpixel / moco_superpixel_cluster / moco_superpixel_cluster_bioptimus)",
+        cfg.model.get("moco_type", "moco_superpixel_cluster_bioptimus"),
         str
     )
     cfg.model.base_encoder = safe_input(

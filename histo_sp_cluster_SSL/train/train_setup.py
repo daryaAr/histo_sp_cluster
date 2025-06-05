@@ -40,7 +40,7 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
     loss_log = load_existing_losses(cfg.paths.plot_dir)
     contrastive = ContrastiveLoss(temperature=cfg.model.temperature)
 
-    x_labels = []
+    #x_labels = []
     losses_all = []
     contrastive_losses = []
     fn_losses = []
@@ -67,11 +67,11 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
         lr = adjust_learning_rate(optimizer, epoch, cfg.training.learning_rate, cfg.training.epochs)
         logger.info(f"Learning rate adjusted to: {lr:.6f}")
 
-        data_start_time = time.perf_counter()
-        epoch_start_time = time.perf_counter()
+        #data_start_time = time.perf_counter()
+        #epoch_start_time = time.perf_counter()
 
         for batch_idx, batch in enumerate(dataloader):
-            batch_time_start = time.perf_counter()
+            #batch_time_start = time.perf_counter()
 
             if cfg.model.moco_type == "moco_v2":
                 images_q, images_k = batch
@@ -91,6 +91,7 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
                     loss_tile = criterion(q, k1, model.queue)
                     loss_neighbor = criterion(q, k2, model.queue)
                     loss = cfg.loss.alpha * loss_tile + (1 - cfg.loss.alpha) * loss_neighbor
+                    logger.info(f"Loss: {loss.item():.4f}, Tile Loss: {loss_tile.item():.4f}, Neighbor Loss: {loss_neighbor.item():.4f}")
             elif cfg.model.moco_type == "moco_superpixel_cluster":
                 images_q, images_k1, images_k2 = batch
                 images_q = images_q.to(device, non_blocking=True)
@@ -126,6 +127,19 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
                                 annotate_query_ids=True
                             )
                         """
+            elif cfg.model.moco_type == "moco_superpixel_cluster_bioptimus":
+                images_q, images_k1, images_k2, images_q_cluster, images_k2_cluster = batch
+                images_q = images_q.to(device, non_blocking=True)
+                images_k1 = images_k1.to(device, non_blocking=True)
+                images_k2 = images_k2.to(device, non_blocking=True)
+                images_q_cluster = images_q_cluster.to(device, non_blocking=True)
+                images_k2_cluster = images_k2_cluster.to(device, non_blocking=True)
+                with torch.amp.autocast(device_type="cuda"):
+                    q, k1, k2, fn_em, hn_em, _ = model(
+                        images_q, images_k1, images_k2, images_q_cluster
+                    )
+                    loss, contrastive_loss, fn_loss, neighbor_loss = criterion(q, k1, k2, hn_em, fn_em)
+
             else:
                 raise ValueError(f"Unsupported MoCo type: {cfg.model.moco_type}")
 
@@ -161,6 +175,24 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
                             epoch=epoch+1,
                             batch_idx=batch_idx+1
                         )
+                elif (cfg.model.moco_type == "moco_superpixel_cluster_bioptimus"):
+                    
+                    losses_all.append(loss.item())
+                    contrastive_losses.append(contrastive_loss.item())
+                    fn_losses.append(fn_loss.item())
+                    neighbor_losses.append(neighbor_loss.item())
+
+                    # Plot live loss every 400 batches
+                    if (step + 1) % 400 == 0:
+                        plot_live_losses(
+                            losses_all=losses_all,
+                            contrastive_losses=contrastive_losses,
+                            fn_losses=fn_losses,
+                            neighbor_losses=neighbor_losses,
+                            save_dir=cfg.paths.live_loss_plot_dir,
+                            epoch=epoch+1,
+                            batch_idx=batch_idx+1
+                        )        
 
         
 
@@ -170,6 +202,8 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
                     model.update_queue(k1, k2, k1_ids, k2_ids)
                 elif cfg.model.moco_type == "moco_superpixel":
                     model.update_queue(k1, k2)
+                elif cfg.model.moco_type == "moco_superpixel_cluster_bioptimus": 
+                    model.update_queue(k1, k2, images_q_cluster, images_k2_cluster)
                 else:
                     model.update_queue(k)
 
@@ -178,7 +212,7 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
 
             logger.info(f"Epoch {epoch + 1}/{cfg.training.epochs}, Batch {batch_idx + 1}/{len(dataloader)}")
 
-            data_start_time = time.perf_counter()
+            #data_start_time = time.perf_counter()
             #if batch_idx+1 == 20:
               #  break
 
