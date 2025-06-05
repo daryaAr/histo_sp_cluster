@@ -70,7 +70,7 @@ def get_latest_checkpoint(checkpoint_dir):
 
 def load_existing_losses(plot_save_dir):
     """Load previous loss values if they exist."""
-    loss_file = os.path.join(plot_save_dir, f"superpixel_org_loss_curve.txt")
+    loss_file = os.path.join(plot_save_dir, f"training_loss.txt")
     if os.path.exists(loss_file):
         with open(loss_file, "r") as f:
             losses = [float(line.strip()) for line in f.readlines()]
@@ -81,7 +81,7 @@ def save_losses(losses, plot_save_dir):
     """Save the loss values to a file."""
     os.makedirs(plot_save_dir, exist_ok=True)  # Ensure the directory exists
     
-    loss_file = os.path.join(plot_save_dir, "superpixel_org_loss_curve.txt")
+    loss_file = os.path.join(plot_save_dir, "training_loss.txt")
     
     with open(loss_file, "w") as f:
         for loss in losses:

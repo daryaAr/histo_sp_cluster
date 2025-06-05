@@ -46,7 +46,6 @@ def get_model(cfg):
             base_encoder=cfg.model.base_encoder,
             output_dim=cfg.model.output_dim,
             queue_size=cfg.model.queue_size,
-            num_clusters=cfg.model.num_clusters,
             momentum=cfg.model.momentum,
             temperature=cfg.model.temperature,
         )

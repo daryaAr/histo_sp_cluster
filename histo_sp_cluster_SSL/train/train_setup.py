@@ -80,6 +80,7 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
                 with torch.amp.autocast(device_type="cuda"):
                     q, k = model(images_q, images_k)
                     loss = criterion(q, k, model.queue)
+                    logger.info(f"Loss: {loss.item():.4f}")
             elif cfg.model.moco_type == "moco_superpixel":
                 images_q, images_k1, images_k2 = batch
                 images_q = images_q.to(device, non_blocking=True)
