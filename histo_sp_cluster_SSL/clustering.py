@@ -90,3 +90,53 @@ class ClusterNSMoCo:
             centroids: (num_clusters, D)
         """
         return self.memory_bank_embeddings, self.memory_bank_cluster_ids, self.centroids 
+    
+
+    
+class ClusterNegativeMiner:
+    def __init__(self, memory_bank: torch.Tensor, memory_bank_cluster_ids: torch.Tensor):
+        """
+        Args:
+            memory_bank: Tensor of shape (K, D) with key embeddings.
+            memory_bank_cluster_ids: Tensor of shape (K, 3) with cluster IDs:
+                                     [:, 0] = primary, [:, 1] = second, [:, 2] = third
+        """
+        self.memory_bank = memory_bank  # (K, D)
+        self.memory_bank_cluster_ids = memory_bank_cluster_ids  # (K, 3)
+
+    def get_negatives_by_cluster(
+        self, queries: torch.Tensor, query_cluster_ids: torch.Tensor
+    ) -> Dict[str, List[torch.Tensor]]:
+        """
+        For each query:
+        - return false negatives (same primary cluster)
+        - return hard negatives (second or third cluster)
+        Returns:
+            dict with lists of indices and embeddings
+        """
+        results = {
+            "false_negative_indices": [],
+            "false_negative_embeddings": [],
+            "hard_negative_indices": [],
+            "hard_negative_embeddings": [],
+        }
+
+        for i in range(queries.shape[0]):
+            #q = queries[i]
+            q_primary, q_second, q_third = query_cluster_ids[i]  # Scalars
+
+            # Find indices in memory bank that match the query's primary cluster
+            fn_idx = (self.memory_bank_cluster_ids[:, 0] == q_primary).nonzero(as_tuple=True)[0]
+
+            # Find indices that match second OR third cluster
+            hn_idx_2 = (self.memory_bank_cluster_ids[:, 0] == q_second).nonzero(as_tuple=True)[0]
+            hn_idx_3 = (self.memory_bank_cluster_ids[:, 0] == q_third).nonzero(as_tuple=True)[0]
+            hn_idx = torch.cat([hn_idx_2, hn_idx_3], dim=0)
+
+            results["false_negative_indices"].append(fn_idx)
+            results["false_negative_embeddings"].append(self.memory_bank[fn_idx])
+
+            results["hard_negative_indices"].append(hn_idx)
+            results["hard_negative_embeddings"].append(self.memory_bank[hn_idx])
+
+        return results    

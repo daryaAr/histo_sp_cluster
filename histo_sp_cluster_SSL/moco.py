@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
-from histo_sp_cluster_SSL.clustering import ClusterNSMoCo 
+from histo_sp_cluster_SSL.clustering import ClusterNSMoCo, ClusterNegativeMiner
 from torchvision.models import ResNet18_Weights, ResNet34_Weights, ResNet50_Weights, ResNet101_Weights, ResNet152_Weights
 import logging
 from torch.utils.data import DataLoader
@@ -128,8 +128,8 @@ class MoCoSuperpixelCluster(MoCoV2Encoder):
             q_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
             k1_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
             k2_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
-            false_negatives = [torch.tensor([], dtype=torch.long, device=self.device)] * q.size(0)
-            hard_negatives = [torch.tensor([], dtype=torch.long, device=self.device)] * q.size(0)
+            false_negatives_em = [torch.tensor([], dtype=torch.long, device=self.device)] * q.size(0)
+            hard_negatives_em = [torch.tensor([], dtype=torch.long, device=self.device)] * q.size(0)
 
         return q, k1, k2, false_negatives_em, hard_negatives_em, false_negatives_in, hard_negatives_in, q_cluster_ids, k1_cluster_ids, k2_cluster_ids, self.queue
 
@@ -152,58 +152,63 @@ class MoCoSuperpixelCluster(MoCoV2Encoder):
 
         self.queue_ptr[0] = (ptr + total) % self.queue.size(0)    
 
-class MoCoSuperpixelClusterBioptimus(MoCoV2Encoder):
-    def __init__(self, base_encoder, output_dim, queue_size, momentum, temperature, num_clusters, device):
-        super().__init__(base_encoder, output_dim, queue_size, momentum, temperature)
-        self.cluster_helper = ClusterNSMoCo(num_clusters, output_dim, device)
-        self.register_buffer("queue_cluster_ids", torch.zeros(queue_size, dtype=torch.long))
 
-    def forward(self, x_q, x_k1, x_k2, step=None, update_step=None):
+
+class MoCoSuperpixelClusterBioptimus(MoCoV2Encoder):
+    def __init__(self, base_encoder, output_dim, queue_size, momentum, temperature):
+        super().__init__(base_encoder, output_dim, queue_size, momentum, temperature)
+        #self.device = device
+        self.register_buffer("queue_cluster_ids", torch.zeros(queue_size, 3, dtype=torch.long)) 
+
+    def forward(self, x_q, x_k1, x_k2, q_cluster_ids): #k1_cluster_ids, k2_cluster_ids
         q = F.normalize(self.encoder_q(x_q), dim=1)
         with torch.no_grad():
             self._momentum_update_key_encoder()
             k1 = F.normalize(self.encoder_k(x_k1), dim=1)
             k2 = F.normalize(self.encoder_k(x_k2), dim=1)
 
-        if step is not None and update_step is not None and self.queue.shape[0] > self.cluster_helper.num_clusters:
-            self.cluster_helper.update_centroids(self.queue, step, update_step)
+        false_negatives_em = []
+        hard_negatives_em = []
+        #false_negatives_in = []
+        #hard_negatives_in = []
 
-        if self.cluster_helper.initialized:
-            q_cluster_ids, _ = self.cluster_helper.assign_to_centroids(q)
-            k1_cluster_ids, _ = self.cluster_helper.assign_to_centroids(k1)
-            k2_cluster_ids, _ = self.cluster_helper.assign_to_centroids(k2)
+        if self.queue.shape[0] == self.queue_cluster_ids.shape[0]:
+            self.cluster_helper = ClusterNegativeMiner(self.queue, self.queue_cluster_ids)
 
-            negs = self.cluster_helper.get_negatives_by_cluster(q, self.queue)
+            negs = self.cluster_helper.get_negatives_by_cluster(q, q_cluster_ids)
             false_negatives_em = negs["false_negative_embeddings"]
             hard_negatives_em = negs["hard_negative_embeddings"]
-            false_negatives_in = negs["false_negative_indices"]
-            hard_negatives_in = negs["hard_negative_indices"]
+            #false_negatives_in = negs["false_negative_indices"]
+            #hard_negatives_in = negs["hard_negative_indices"]
 
-        else:
-            q_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
-            k1_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
-            k2_cluster_ids = torch.zeros(q.size(0), dtype=torch.long, device=self.device)
-            false_negatives = [torch.tensor([], dtype=torch.long, device=self.device)] * q.size(0)
-            hard_negatives = [torch.tensor([], dtype=torch.long, device=self.device)] * q.size(0)
+        return q, k1, k2, false_negatives_em, hard_negatives_em, self.queue
 
-        return q, k1, k2, false_negatives_em, hard_negatives_em, false_negatives_in, hard_negatives_in, q_cluster_ids, k1_cluster_ids, k2_cluster_ids, self.queue
+    def update_queue(self, keys, neighbor_keys, keys_cluster_ids, neighbor_keys_cluster_ids):
+        """
+        Update memory queue with keys and neighbor keys along with their cluster IDs.
 
-    def update_queue(self, keys, neighbor_keys, keys_id, neighbor_keys_id):
-        combined_keys = torch.cat([keys, neighbor_keys], dim=0)
-        combined_ids = torch.cat([keys_id, neighbor_keys_id], dim=0)
+        Args:
+            keys: Tensor (B, D)
+            neighbor_keys: Tensor (B, D)
+            keys_cluster_ids: Tensor (B, 3) for [primary, second, third]
+            neighbor_keys_cluster_ids: Tensor (B, 3)
+        """
+        combined_keys = torch.cat([keys, neighbor_keys], dim=0)  # (2B, D)
+        combined_cluster_ids = torch.cat([keys_cluster_ids, neighbor_keys_cluster_ids], dim=0)  # (2B, 3)
+
         ptr = int(self.queue_ptr)
         total = combined_keys.size(0)
         end_ptr = ptr + total
 
         if end_ptr <= self.queue.size(0):
             self.queue[ptr:end_ptr, :] = combined_keys
-            self.queue_cluster_ids[ptr:end_ptr] = combined_ids
+            self.queue_cluster_ids[ptr:end_ptr, :] = combined_cluster_ids
         else:
             first = self.queue.size(0) - ptr
-            self.queue[ptr:] = combined_keys[:first]
-            self.queue[:end_ptr % self.queue.size(0)] = combined_keys[first:]
-            self.queue_cluster_ids[ptr:] = combined_ids[:first]
-            self.queue_cluster_ids[:end_ptr % self.queue.size(0)] = combined_ids[first:]
+            self.queue[ptr:, :] = combined_keys[:first]
+            self.queue[:end_ptr % self.queue.size(0), :] = combined_keys[first:]
 
-        self.queue_ptr[0] = (ptr + total) % self.queue.size(0)   
+            self.queue_cluster_ids[ptr:, :] = combined_cluster_ids[:first]
+            self.queue_cluster_ids[:end_ptr % self.queue.size(0), :] = combined_cluster_ids[first:]
 
+        self.queue_ptr[0] = (ptr + total) % self.queue.size(0)  

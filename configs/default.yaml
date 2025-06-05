@@ -1,7 +1,7 @@
 model:
   type: moco
   base_encoder: resnet50
-  moco_type: moco_superpixel_cluster  # Options: moco_v2, moco_superpixel, moco_superpixel_cluster
+  moco_type: moco_superpixel_cluster_bioptimus  # Options: moco_v2, moco_superpixel, moco_superpixel_cluster, moco_superpixel_cluster_bioptimus
   output_dim: 128
   queue_size: 32768
   num_clusters: 50
@@ -16,8 +16,8 @@ training:
   learning_rate: 0.003
   weight_decay: 1e-4
   optimizer: sgd
-  alpha: 0.1
-  beta: 0.05
+  alpha: 0.05
+  beta: 0.01
   lambda_bml: 0.5
   warm_up_step: 100
   update_step: 50
@@ -38,3 +38,4 @@ cluster:
 
 loss:
   type: cluster # cluster, contrastive  
+  alpha: 0.5
