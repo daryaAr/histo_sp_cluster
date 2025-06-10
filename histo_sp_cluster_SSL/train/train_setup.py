@@ -171,8 +171,8 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
                     model.update_queue(k)
             step += 1 
             #data_start_time = time.perf_counter()
-            if batch_idx+1 == 20:
-                break   
+            #if batch_idx+1 == 20:
+              #  break   
 
             torch.cuda.empty_cache()    
 
