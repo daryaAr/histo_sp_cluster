@@ -33,7 +33,7 @@ def build_resnet_with_projection(base_encoder, output_dim, pretrained=False):
     return encoder   
 
 class MoCoV2Encoder(nn.Module):
-    def __init__(self, base_encoder='resnet50', output_dim=128, queue_size=65536, momentum=0.999, temperature=0.07):
+    def __init__(self, base_encoder='resnet50', output_dim=128, queue_size=65536, momentum=0.999, temperature=0.07, init_queue=None):
         super().__init__()
         self.encoder_q = build_resnet_with_projection(base_encoder, output_dim)
         self.encoder_k = build_resnet_with_projection(base_encoder, output_dim)
@@ -41,8 +41,9 @@ class MoCoV2Encoder(nn.Module):
         self.temperature = temperature
         self.momentum = momentum
 
-        self.register_buffer("queue", torch.randn(queue_size, output_dim))
-        self.queue = F.normalize(self.queue, dim=1)
+        self.register_buffer("queue", torch.randn(queue_size, output_dim) if init_queue is None else init_queue)
+        if init_queue is None:
+            self.queue = F.normalize(self.queue, dim=1)
         self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
         self._initialize_momentum_encoder()
@@ -98,9 +99,13 @@ class MoCoSuperpixel(MoCoV2Encoder):
 
 
 class MoCoSuperpixelCluster(MoCoV2Encoder):
-    def __init__(self, base_encoder, output_dim, queue_size, momentum, temperature, num_clusters, device):
+    def __init__(self, base_encoder='resnet50', output_dim=128, queue_size=65536, momentum=0.999, temperature=0.07, init_queue=None, num_clusters=50, device="cuda"):
         super().__init__(base_encoder, output_dim, queue_size, momentum, temperature)
         self.cluster_helper = ClusterNSMoCo(num_clusters, output_dim, device)
+        if init_queue is not None:
+            self.register_buffer("queue", init_queue)
+        else:
+            self.register_buffer("queue", F.normalize(torch.randn(queue_size, output_dim), dim=1))
         self.register_buffer("queue_cluster_ids", torch.zeros(queue_size, dtype=torch.long))
 
     def forward(self, x_q, x_k1, x_k2, step=None, update_step=None):
@@ -155,10 +160,21 @@ class MoCoSuperpixelCluster(MoCoV2Encoder):
 
 
 class MoCoSuperpixelClusterBioptimus(MoCoV2Encoder):
-    def __init__(self, base_encoder, output_dim, queue_size, momentum, temperature):
+    def __init__(self, base_encoder='resnet50', output_dim=128, queue_size=65536, momentum=0.999, temperature=0.07, init_queue=None, init_cluster_ids=None):
         super().__init__(base_encoder, output_dim, queue_size, momentum, temperature)
         #self.device = device
-        self.register_buffer("queue_cluster_ids", torch.zeros(queue_size, 3, dtype=torch.long)) 
+        #self.register_buffer("queue_cluster_ids", torch.zeros(queue_size, 3, dtype=torch.long)) 
+        # Handle optional queue initialization
+        if init_queue is not None:
+            self.register_buffer("queue", init_queue)
+        else:
+            self.register_buffer("queue", F.normalize(torch.randn(queue_size, output_dim), dim=1))
+
+        # Initialize queue_cluster_ids
+        if init_cluster_ids is not None:
+            self.register_buffer("queue_cluster_ids", init_cluster_ids)
+        else:
+            self.register_buffer("queue_cluster_ids", torch.zeros(queue_size, 3, dtype=torch.long))
 
     def forward(self, x_q, x_k1, x_k2, q_cluster_ids): #k1_cluster_ids, k2_cluster_ids
         q = F.normalize(self.encoder_q(x_q), dim=1)

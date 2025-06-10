@@ -3,72 +3,16 @@ import logging
 from datetime import datetime
 import torch
 from torch.utils.tensorboard import SummaryWriter
-
 from histo_sp_cluster_SSL.config import load_yaml_config
 from histo_sp_cluster_SSL.dataloader import get_dataloader
-from histo_sp_cluster_SSL.Loss import ClusterLoss, ContrastiveLoss
-from histo_sp_cluster_SSL.moco import (
-    MoCoV2Encoder,
-    MoCoSuperpixel,
-    MoCoSuperpixelCluster,
-    MoCoSuperpixelClusterBioptimus
-)
-from histo_sp_cluster_SSL.utils.training_utils import (
-    adjust_learning_rate, update_template_csv, save_checkpoint,
-    get_latest_checkpoint, load_existing_losses, save_losses
-)
-from histo_sp_cluster_SSL.utils.visualization import plot_loss_curve
 from histo_sp_cluster_SSL.train.train_setup import train_moco
 from histo_sp_cluster_SSL.utils.logger import logger
+from histo_sp_cluster_SSL.utils.utils import (
+    get_model,
+    get_loss_fn,
+    build_run_name
+)
 
-
-def get_model(cfg):
-    model_cls_map = {
-        "moco_v2": MoCoV2Encoder,
-        "moco_superpixel": MoCoSuperpixel,
-        "moco_superpixel_cluster": MoCoSuperpixelCluster,
-        "moco_superpixel_cluster_bioptimus": MoCoSuperpixelClusterBioptimus
-    }
-
-    model_type = cfg.model.moco_type.lower()
-    model_cls = model_cls_map[model_type]
-
-    if model_type == "moco_superpixel_cluster":
-        return model_cls(
-            base_encoder=cfg.model.base_encoder,
-            output_dim=cfg.model.output_dim,
-            queue_size=cfg.model.queue_size,
-            num_clusters=cfg.model.num_clusters,
-            momentum=cfg.model.momentum,
-            temperature=cfg.model.temperature,
-            device=cfg.training.device  
-        )
-    else:
-        return model_cls(
-            base_encoder=cfg.model.base_encoder,
-            output_dim=cfg.model.output_dim,
-            queue_size=cfg.model.queue_size,
-            momentum=cfg.model.momentum,
-            temperature=cfg.model.temperature,
-        )
-
-
-def get_loss_fn(cfg):
-    if cfg.loss.type == "contrastive":
-        return ContrastiveLoss(temperature=cfg.model.temperature)
-    elif cfg.loss.type == "cluster":
-        return ClusterLoss(
-            temperature=cfg.model.temperature,
-            alpha=cfg.training.alpha,
-            beta=cfg.training.beta,
-            lambda_bml=cfg.training.lambda_bml
-        )
-    else:
-        raise ValueError(f"Unsupported loss type: {cfg.loss.type}")
-
-
-def build_run_name(cfg):
-    return f"{cfg.cluster.cluster_type}_bs{cfg.training.batch_size}_lr{cfg.training.learning_rate}_step{cfg.training.update_step}_warmup{cfg.training.warm_up_step}_epochs{cfg.training.epochs}_clusters{cfg.model.num_clusters}_{cfg.model.moco_type}"
 
 
 if __name__ == "__main__":
@@ -92,6 +36,11 @@ if __name__ == "__main__":
     cfg.model.base_encoder = safe_input(
         "Enter base encoder (resnet18 / resnet34 / resnet50 / resnet101 / resnet152)",
         cfg.model.get("base_encoder", "resnet50"),
+        str
+    )
+    cfg.model.init_queue_type = safe_input(
+        "Enter queue initilizer type (random / awared_random)",
+        cfg.model.get("init_queue_type", "awared_random"),
         str
     )
     cfg.model.momentum = safe_input("Enter momentum", cfg.model.momentum, int)
@@ -135,20 +84,23 @@ if __name__ == "__main__":
     # === Setup output directories ===
     os.makedirs(cfg.paths.model_save_dir, exist_ok=True)
     os.makedirs(cfg.paths.checkpoint_dir, exist_ok=True)
+    
   
     cfg.paths.save_model_dir = os.path.join(cfg.paths.model_save_dir, run_name)
     cfg.paths.best_model_dir = os.path.join(cfg.paths.checkpoint_dir, run_name)
-    cfg.paths.plot_dir = os.path.join(cfg.paths.output_base, "training_loss", run_name)
+    cfg.paths.loss_curve_dir = os.path.join(cfg.paths.output_base, "training_loss", run_name)
     cfg.paths.tensorboard_dir = os.path.join(cfg.paths.output_base, "tensorboard", run_name)
-    cfg.paths.umap_dir = os.path.join(cfg.paths.output_base, "figures", "queue_umaps_training", run_name)
-    cfg.paths.loss_curve_dir = os.path.join(cfg.paths.output_base, "figures", "training_loss_curve", run_name)
+    #cfg.paths.umap_dir = os.path.join(cfg.paths.output_base, "figures", "queue_umaps_training", run_name)
+    cfg.paths.plot_dir = os.path.join(cfg.paths.output_base, "figures", "training_loss_curve", run_name)
     cfg.paths.live_loss_plot_dir = os.path.join(cfg.paths.output_base, "figures", "live_loss_plot", run_name)
+    cfg.paths.epoch_loss_plot_dir = os.path.join(cfg.paths.output_base, "figures", "epoch_loss_plot", run_name)
     cfg.paths.csv_report_dir = os.path.join(cfg.paths.output_base, "training_csv_reports", run_name)
+    cfg.paths.lr_plot = os.path.join(cfg.paths.output_base, "figures", "lr_plots", run_name)
 
     for p in [
         cfg.paths.plot_dir, cfg.paths.save_model_dir, cfg.paths.best_model_dir,
-        cfg.paths.tensorboard_dir, cfg.paths.umap_dir,
-        cfg.paths.loss_curve_dir, cfg.paths.live_loss_plot_dir, cfg.paths.csv_report_dir
+        cfg.paths.tensorboard_dir, cfg.paths.live_loss_plot_dir,
+        cfg.paths.loss_curve_dir, cfg.paths.csv_report_dir, cfg.paths.lr_plot
     ]:
         os.makedirs(p, exist_ok=True)
 
@@ -160,8 +112,8 @@ if __name__ == "__main__":
 
     # === Prepare model, dataloader, loss ===
     device = torch.device(cfg.training.device)
-    model = get_model(cfg).to(device)
     dataloader = get_dataloader(cfg, use_neighbors=cfg.training.use_neighbors)
+    model = get_model(cfg, dataloader).to(device)
     criterion = get_loss_fn(cfg)
     writer = SummaryWriter(log_dir=cfg.paths.tensorboard_dir)
     # === Start training ===

@@ -189,3 +189,9 @@ cython_debug/
 configs/local.yaml
 
 reports
+
+histo_MIL/data/meta_data_json
+histo_MIL/bioptimus_embeddings/test_bioptimus_embeddings.pt
+histo_MIL/bioptimus_embeddings/test_tile_paths.pt
+histo_MIL/bioptimus_embeddings/train_bioptimus_embeddings.pt
+histo_MIL/bioptimus_embeddings/train_tile_paths.pt
