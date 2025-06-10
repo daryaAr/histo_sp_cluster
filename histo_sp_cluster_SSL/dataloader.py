@@ -42,7 +42,7 @@ def get_moco_v2_augmentations():
     return transforms.Compose([
         transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomApply([transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)], p=0.8),
+        transforms.RandomApply([transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.05)], p=0.8),
         transforms.RandomGrayscale(p=0.2),
         GaussianBlur(sigma=[0.1, 2.0]),
         transforms.ToTensor(),
