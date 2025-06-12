@@ -19,9 +19,9 @@ def get_model(cfg, dataloader):
     init_queue, init_cluster_ids = None, None
     if cfg.model.init_queue_type == "awared_random":
       result = initialize_queue_random_from_dataset(cfg, dataloader, samples_per_batch=15)
-    if isinstance(result, tuple):
+      if isinstance(result, tuple):
         init_queue, init_cluster_ids = result
-    else:
+      else:
         init_queue = result
 
     model_type = cfg.model.moco_type.lower()
