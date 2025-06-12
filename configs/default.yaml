@@ -3,7 +3,7 @@ model:
   base_encoder: resnet50
   moco_type: moco_superpixel_cluster_bioptimus  # Options: moco_v2, moco_superpixel, moco_superpixel_cluster, moco_superpixel_cluster_bioptimus
   output_dim: 128
-  queue_size: 2560  #32768
+  queue_size: 2560  #512
   num_clusters: 50
   momentum: 0.9
   temperature: 0.07
