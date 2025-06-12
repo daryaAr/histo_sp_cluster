@@ -59,10 +59,10 @@ def extract_bioptimus_embeddings(cfg, json_path, data= "train"):
     embeddings_tensor = torch.cat(all_embeddings, dim=0)
 
     # Save
-    os.makedirs(cfg.cptac.bioptimus_embeddings, exist_ok=True)
-    torch.save(embeddings_tensor, os.path.join(cfg.cptac.bioptimus_embeddings, f"{data}_bioptimus_embeddings.pt"))
-    torch.save(tile_paths, os.path.join(cfg.cptac.bioptimus_embeddings, f"{data}_tile_paths.pt"))
-    print(f"Saved embeddings and tile paths of {data} to {cfg.cptac.bioptimus_embeddings}")
+    os.makedirs(cfg.cptac.embeddings_result, exist_ok=True)
+    torch.save(embeddings_tensor, os.path.join(cfg.cptac.embeddings_result, "bioptimus", f"{data}_bioptimus_embeddings.pt"))
+    torch.save(tile_paths, os.path.join(cfg.cptac.embeddings_result, "bioptimus", f"{data}_tile_paths.pt"))
+    print(f"Saved embeddings and tile paths of {data} to {cfg.cptac.embeddings_result}")
 
 if __name__ == "__main__":
     cfg = load_yaml_config()

@@ -84,6 +84,8 @@ class ClusterLoss(nn.Module):
             # Contrastive loss
             l_pos = torch.einsum("nc,nc->n", qi, ki).unsqueeze(1)
             l_neg = torch.matmul(qi, hn_i.T)
+            #l_neg2 = torch.einsum("nd,md->", qi, hn_i) / hn_i.shape[0]
+            #print(f"l_neg: {l_neg2.item()}")
             logits = torch.cat([l_pos, l_neg], dim=1) / self.temperature
             label = torch.zeros(1, dtype=torch.long, device=q.device)
             contrastive_losses.append(F.cross_entropy(logits, label))
@@ -98,8 +100,12 @@ class ClusterLoss(nn.Module):
             # BML (False Negative)
             if fn_i.shape[0] > 0:
                 sim_fn = torch.einsum("nd,md->", qi, fn_i) / fn_i.shape[0]
+                #sim_fn = torch.matmul(qi, fn_i.T).mean()
                 sim_pos = torch.einsum("nd,nd->", qi, ki)
                 delta_fn = sim_fn - sim_pos
+                #print(f"sim_fn: {sim_fn.item()}")
+                #print(sim_pos.item())
+                #print(delta_fn.item())
                 bml_fn.append(F.relu(delta_fn + self.alpha) + F.relu(-delta_fn - self.beta))
 
             """
