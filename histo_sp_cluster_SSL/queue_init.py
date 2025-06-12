@@ -35,11 +35,15 @@ def initialize_queue_random_from_dataset(cfg, dataloader, samples_per_batch=15):
     encoder = build_resnet_with_projection(base_encoder_name, output_dim, pretrained=True).to(device)
     encoder.eval()
 
-    all_images = []
+    
     cluster_ids = []
+    total_collected = 0
+    batch_queue = []
+    batch_cluster_ids = []
 
     with torch.no_grad():
         for batch in tqdm(dataloader, desc="Sampling for initial queue"):
+           
             if moco_type == "moco_superpixel_cluster_bioptimus":
                 imgs, _, _, anchor_clusters, _ = batch
             elif moco_type in ["moco_superpixel", "moco_superpixel_cluster"]:
@@ -50,24 +54,27 @@ def initialize_queue_random_from_dataset(cfg, dataloader, samples_per_batch=15):
             batch_size = imgs.size(0)
             selected_indices = random.sample(range(batch_size), min(samples_per_batch, batch_size))
 
-            for i in selected_indices:
-                all_images.append(imgs[i])
-                if moco_type == "moco_superpixel_cluster_bioptimus":
-                    cluster_ids.append(anchor_clusters[i])
+            # Get selected images
+            batch_images = imgs[selected_indices].to(device)
+            batch_features = F.normalize(encoder(batch_images), dim=1)
+            batch_queue.append(batch_features)
 
-            if len(all_images) >= queue_size:
+
+            if moco_type == "moco_superpixel_cluster_bioptimus":
+                batch_clusters = anchor_clusters[selected_indices].to(device)
+                batch_cluster_ids.append(batch_clusters)
+
+            total_collected += batch_features.size(0)
+            if total_collected >= queue_size:
                 break
 
-        # Final encoding
-        all_images = all_images[:queue_size]
-        imgs_tensor = torch.stack(all_images).to(device)
-        logger.info(f"Encoding {len(imgs_tensor)} images with base encoder...")
-        queue = F.normalize(encoder(imgs_tensor), dim=1)
+      # Concatenate and trim to exact queue size
+    queue = torch.cat(batch_queue, dim=0)[:queue_size]
 
     if moco_type == "moco_superpixel_cluster_bioptimus":
-        cluster_ids_tensor = torch.stack(cluster_ids[:queue_size]).to(device)
-        logger.info("Returning queue and cluster IDs.")
+        cluster_ids_tensor = torch.cat(batch_cluster_ids, dim=0)[:queue_size]
+        logger.info(f"Queue shape: {queue.shape}, Cluster shape: {cluster_ids_tensor.shape}")
         return queue, cluster_ids_tensor
     else:
-        logger.info("Returning queue.")
+        logger.info(f"Queue shape: {queue.shape}")
         return queue

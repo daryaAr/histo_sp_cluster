@@ -3,7 +3,7 @@ model:
   base_encoder: resnet50
   moco_type: moco_superpixel_cluster_bioptimus  # Options: moco_v2, moco_superpixel, moco_superpixel_cluster, moco_superpixel_cluster_bioptimus
   output_dim: 128
-  queue_size: 32768  #512
+  queue_size: 2560  #512
   num_clusters: 50
   momentum: 0.9
   temperature: 0.07
@@ -17,9 +17,9 @@ training:
   learning_rate: 0.003
   weight_decay: 1e-4
   optimizer: sgd
-  alpha: 0.05
-  beta: 0.01
-  lambda_bml: 100
+  alpha: 0.01
+  beta: 0.005
+  lambda_bml: 10
   warm_up_step: 100
   update_step: 50
   resume_checkpoint: false
