@@ -100,7 +100,7 @@ def get_resnet_embeddings(cfg, json_path, batch_size=64, num_workers=4, data_typ
 
 if __name__ == "__main__":
     cfg = load_yaml_config()
-    train_json = Path(cfg.cptac.json_output) / "train.json"
+    train_json = Path(cfg.cptac.json_output) / "updated_train.json"
     get_resnet_embeddings(cfg, train_json, batch_size=64, num_workers=4, data_type="train")
-    test_json = Path(cfg.cptac.json_output) / "test.json"
+    test_json = Path(cfg.cptac.json_output) / "updated_test.json"
     get_resnet_embeddings(cfg, test_json, batch_size=64, num_workers=4, data_type="test")    

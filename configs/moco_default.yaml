@@ -40,3 +40,6 @@ cluster:
 loss:
   type: cluster # cluster, contrastive  
   alpha: 0.5
+
+MIL_model:
+  resnet_embedding_dim: 2048  

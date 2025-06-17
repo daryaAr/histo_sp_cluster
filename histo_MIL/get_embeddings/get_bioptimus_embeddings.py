@@ -66,7 +66,7 @@ def extract_bioptimus_embeddings(cfg, json_path, data= "train"):
 
 if __name__ == "__main__":
     cfg = load_yaml_config()
-    train_json = Path(cfg.cptac.json_output) / "train.json"
+    train_json = Path(cfg.cptac.json_output) / "updated_train.json"
     #extract_bioptimus_embeddings(cfg, train_json, data = "train")
-    test_json = Path(cfg.cptac.json_output) / "test.json"
+    test_json = Path(cfg.cptac.json_output) / "updated_test.json"
     extract_bioptimus_embeddings(cfg, test_json, data = "test")

@@ -26,7 +26,7 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 
 
 def load_yaml_config(
-    default_path: str = "configs/default.yaml",
+    default_path: str = "configs/moco_default.yaml",
     local_path: str = "configs/local.yaml"
 ):
     """
