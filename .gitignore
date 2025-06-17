@@ -193,3 +193,5 @@ reports
 histo_MIL/data/meta_data_json
 histo_MIL/embeddings_result
 histo_MIL/data
+
+*.csv
