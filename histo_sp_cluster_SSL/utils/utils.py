@@ -64,4 +64,4 @@ def get_loss_fn(cfg):
         raise ValueError(f"Unsupported loss type: {cfg.loss.type}")
 
 def build_run_name(cfg):
-    return f"{cfg.cluster.cluster_type}_bs{cfg.training.batch_size}_lr{cfg.training.learning_rate}_epochs{cfg.training.epochs}_clusters{cfg.model.num_clusters}_{cfg.model.moco_type}"        
+    return f"{cfg.cluster.cluster_type}_queue_wo_fn_queue{cfg.model.queue_size}_alpha{cfg.training.alpha}_beta{cfg.training.beta}_epochs{cfg.training.epochs}_{cfg.model.moco_type}"        

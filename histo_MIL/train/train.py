@@ -22,10 +22,13 @@ if __name__ == "__main__":
     
 
     cfg.embeddings.type = safe_input(
-        "Enter embedding type (resnet50 / bioptimus / moco / superpixel+cluster / superpixel)",
+        "Enter embedding type (resnet50 / bioptimus / mocov2 / superpixel_cluster / superpixel)",
         cfg.embeddings.get("type", "bioptimus"),
         str
     )
+    projection = input(f"Using projection in embeddings (yes/no, default {'yes' if cfg.embeddings.projection else 'no'}): ").strip().lower()
+    if projection:
+        cfg.embeddings.projection = True if projection == "yes" else False
     cfg.training.device = safe_input("Enter device (cuda:0 / cuda:1)", cfg.training.get("device", "cuda:0"), str)
     cfg.mil.mode = safe_input("Enter mode of the run", cfg.mil.get("mode", "train"), str)
     cfg.training.batch_size = safe_input("Enter batch size", cfg.training.batch_size, int)

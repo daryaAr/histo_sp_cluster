@@ -22,12 +22,12 @@ def get_latest_checkpoint(checkpoint_dir):
     checkpoints = sorted(glob.glob(os.path.join(checkpoint_dir, "*.pth")), key=os.path.getmtime, reverse=True)
     return checkpoints[0] if checkpoints else None
 
-def save_mil_losses(losses, accuracies, f1_scores, plot_save_dir):
+def save_mil_losses(losses, accuracies, f1_scores, epoch, plot_save_dir):
     """Save losses and metrics to separate text files."""
     os.makedirs(plot_save_dir, exist_ok=True)
-    _save_single_metric("mil_loss.txt", losses, plot_save_dir)
-    _save_single_metric("mil_accuracy.txt", accuracies, plot_save_dir)
-    _save_single_metric("mil_f1.txt", f1_scores, plot_save_dir)
+    _save_single_metric(f"mil_loss_triggered_epoch{epoch+1}.txt", losses, plot_save_dir)
+    _save_single_metric(f"mil_accuracy_triggered_epoch{epoch+1}.txt", accuracies, plot_save_dir)
+    _save_single_metric(f"mil_f1_triggered_epoch{epoch+1}.txt", f1_scores, plot_save_dir)
 
 def _save_single_metric(filename, values, save_dir):
     path = os.path.join(save_dir, filename)
@@ -66,7 +66,7 @@ def save_confusion_matrix(cm_tensor, class_names, save_path, epoch=None):
 
 
 
-def log_mil_training_run(cfg, run_name, train_loss, train_acc, train_f1, val_loss, val_acc, val_f1):
+def log_mil_training_run(cfg, run_name, train_loss, train_acc, train_f1, val_loss, val_acc, val_f1, epoch):
     """
     Logs the MIL training configuration and both training and validation metrics into a CSV file.
 
@@ -82,6 +82,7 @@ def log_mil_training_run(cfg, run_name, train_loss, train_acc, train_f1, val_los
     """
     header = [
         "run_name",
+        "trigerred epoch",
         "model_type",
         "input_dim",
         "hidden_dim",
@@ -104,6 +105,7 @@ def log_mil_training_run(cfg, run_name, train_loss, train_acc, train_f1, val_los
 
     row = {
         "run_name": run_name,
+        "trigerred epoch": epoch+1,
         "model_type": cfg.embeddings.type,
         "input_dim": cfg.embeddings.dim,
         "hidden_dim": cfg.model.hidden_dim,

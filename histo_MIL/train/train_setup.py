@@ -37,6 +37,7 @@ def train_mil(cfg, model, train_loader, val_loader, writer, run_name):
     train_f1s, val_f1s = [], []
     best_val_loss = float("inf")
     patience_counter = 0
+    end_epoch = 0
 
     for epoch in range(cfg.training.epochs):
         logger.info(f"Epoch {epoch + 1}/{cfg.training.epochs} started.")
@@ -49,6 +50,9 @@ def train_mil(cfg, model, train_loader, val_loader, writer, run_name):
             optimizer.zero_grad()
             batch_loss = 0.0
             batch_preds, batch_labels = [], []
+            if batch_idx == 0:
+               print("Shape of first WSI embedding:", bags[0, :lengths[0]].shape) 
+
 
             for i in range(len(bags)):  # Loop over bags in the batch
                 bag = bags[i, :lengths[i]].to(device)  # shape: [num_tiles, input_dim]
@@ -70,8 +74,8 @@ def train_mil(cfg, model, train_loader, val_loader, writer, run_name):
             all_train_preds.extend(batch_preds)
             all_train_labels.extend(batch_labels)
 
-            if batch_idx+1 == 20:
-                break
+            #if batch_idx+1 == 20:
+             #   break
         
 
         avg_train_loss = train_loss_total / len(train_loader)
@@ -133,21 +137,11 @@ def train_mil(cfg, model, train_loader, val_loader, writer, run_name):
         cm_tensor = conf_matrix_metric(val_preds, val_labels)
         cm_path = Path(cfg.mil_paths.confusion_dir) / f"confusion_matrix_val_epoch_{epoch+1}.png"
         save_confusion_matrix(cm_tensor, class_names=list(cfg.mil.label_mapping.keys()), save_path=cm_path, epoch=epoch+1)
-
-         
-        save_checkpoint(
-                epoch=epoch,
-                model=model,
-                optimizer=optimizer,
-                scaler=scaler,
-                base_lr=cfg.training.learning_rate,
-                checkpoint_path=Path(cfg.mil_paths.model_save_dir) / f"epoch_{epoch}.pth",
-                best=False
-            )
             
 
         # Best model and early stopping
         if avg_val_loss < best_val_loss:
+            best_epoch = epoch+1
             best_val_loss = avg_val_loss
             patience_counter = 0
             save_checkpoint(
@@ -156,51 +150,74 @@ def train_mil(cfg, model, train_loader, val_loader, writer, run_name):
                 optimizer=optimizer,
                 scaler=scaler,
                 base_lr=cfg.training.learning_rate,
-                checkpoint_path=Path(cfg.mil_paths.checkpoint_dir) / f"best_model_{run_name}.pth",
+                checkpoint_path=Path(cfg.mil_paths.checkpoint_dir) / f"best_model_epoch{best_epoch}_{run_name}.pth",
                 best=True
             )
             logger.info("Saved best model.")
         else:
             patience_counter += 1
-            logger.info(f"No improvement in validation loss. Patience: {patience_counter}/{cfg.training.early_stopping_patience}")
+            logger.info(f"No improvement in validation loss (best epoch is: {best_epoch}). Patience: {patience_counter}/{cfg.training.early_stopping_patience}")
 
         if cfg.training.early_stopping and patience_counter >= cfg.training.early_stopping_patience:
             logger.info("Early stopping triggered.")
+            end_epoch = epoch
+            save_checkpoint(
+                epoch=epoch,
+                model=model,
+                optimizer=optimizer,
+                scaler=scaler,
+                base_lr=cfg.training.learning_rate,
+                checkpoint_path=Path(cfg.mil_paths.model_save_dir) / f"end_epoch_{end_epoch+1}.pth",
+                best=False
+            )
             break
+        else:
+            save_checkpoint(
+                epoch=epoch,
+                model=model,
+                optimizer=optimizer,
+                scaler=scaler,
+                base_lr=cfg.training.learning_rate,
+                checkpoint_path=Path(cfg.mil_paths.model_save_dir) / f"epoch_{epoch+1}.pth",
+                best=False
+            )
 
     writer.close()
 
-    save_mil_losses(train_losses, train_accuracies, train_f1s, Path(cfg.mil_paths.loss_log_dir) / "train")
-    save_mil_losses(val_losses, val_accuracies, val_f1s, Path(cfg.mil_paths.loss_log_dir) / "val")
+    if cfg.training.early_stopping and patience_counter >= cfg.training.early_stopping_patience:
+
+        save_mil_losses(train_losses, train_accuracies, train_f1s, end_epoch, Path(cfg.mil_paths.loss_log_dir) / "train")
+        save_mil_losses(val_losses, val_accuracies, val_f1s, end_epoch, Path(cfg.mil_paths.loss_log_dir) / "val")
 
 
-    log_mil_training_run(
-        cfg=cfg,
-        run_name=run_name,
-        train_loss=train_losses[-1],
-        train_acc=train_acc,
-        train_f1=train_f1,
-        val_loss=val_losses[-1],
-        val_acc=val_acc,
-        val_f1=val_f1
-    )
+        log_mil_training_run(
+            cfg=cfg,
+            run_name=run_name,
+            epoch=end_epoch,
+            train_loss=train_losses[-1],
+            train_acc=train_acc,
+            train_f1=train_f1,
+            val_loss=val_losses[-1],
+            val_acc=val_acc,
+            val_f1=val_f1
+        )
     plot_train_val_loss(
-    train_losses=train_losses,
-    val_losses=val_losses,
-    ylabel="Loss",
-    save_path=Path(cfg.mil_paths.loss_plot_dir) / "mil_loss_curve.png"
-    )
+        train_losses=train_losses,
+        val_losses=val_losses,
+        ylabel="Loss",
+        save_path=Path(cfg.mil_paths.loss_plot_dir) / "mil_loss_curve.png"
+        )
     plot_train_val_loss(
-    train_losses=train_accuracies,
-    val_losses=val_accuracies,
-    ylabel="Accuracy",
-    save_path=Path(cfg.mil_paths.metric_plot_dir) / "mil_accuracy_curve.png"
-    )
+        train_losses=train_accuracies,
+        val_losses=val_accuracies,
+        ylabel="Accuracy",
+        save_path=Path(cfg.mil_paths.metric_plot_dir) / "mil_accuracy_curve.png"
+        )
     plot_train_val_loss(
-    train_losses=train_f1s,
-    val_losses=val_f1s,
-    ylabel="F1 score",
-    save_path=Path(cfg.mil_paths.metric_plot_dir) / "mil_f1_curve.png"
-    )
+        train_losses=train_f1s,
+        val_losses=val_f1s,
+        ylabel="F1 score",
+        save_path=Path(cfg.mil_paths.metric_plot_dir) / "mil_f1_curve.png"
+        )    
 
     logger.info("Training completed.")

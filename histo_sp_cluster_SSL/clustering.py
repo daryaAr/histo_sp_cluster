@@ -117,8 +117,9 @@ class ClusterNegativeMiner:
         results = {
             "false_negative_indices": [],
             "false_negative_embeddings": [],
-            "hard_negative_indices": [],
-            "hard_negative_embeddings": [],
+            #"hard_negative_indices": [],
+            #"hard_negative_embeddings": [],
+            "queue_without_fn": [],
         }
 
         for i in range(queries.shape[0]):
@@ -128,15 +129,22 @@ class ClusterNegativeMiner:
             # Find indices in memory bank that match the query's primary cluster
             fn_idx = (self.memory_bank_cluster_ids[:, 0] == q_primary).nonzero(as_tuple=True)[0]
 
+            full_idx = torch.arange(self.memory_bank.shape[0], device=self.memory_bank.device)
+            keep_mask = torch.ones_like(full_idx, dtype=torch.bool)
+            keep_mask[fn_idx] = False
+
+            filtered_queue = self.memory_bank[keep_mask]
+            results["queue_without_fn"].append(filtered_queue)
+
             # Find indices that match second OR third cluster
-            hn_idx_2 = (self.memory_bank_cluster_ids[:, 0] == q_second).nonzero(as_tuple=True)[0]
-            hn_idx_3 = (self.memory_bank_cluster_ids[:, 0] == q_third).nonzero(as_tuple=True)[0]
-            hn_idx = torch.cat([hn_idx_2, hn_idx_3], dim=0)
+            #hn_idx_2 = (self.memory_bank_cluster_ids[:, 0] == q_second).nonzero(as_tuple=True)[0]
+            #hn_idx_3 = (self.memory_bank_cluster_ids[:, 0] == q_third).nonzero(as_tuple=True)[0]
+            #hn_idx = torch.cat([hn_idx_2, hn_idx_3], dim=0)
 
             results["false_negative_indices"].append(fn_idx)
             results["false_negative_embeddings"].append(self.memory_bank[fn_idx])
 
-            results["hard_negative_indices"].append(hn_idx)
-            results["hard_negative_embeddings"].append(self.memory_bank[hn_idx])
+            #results["hard_negative_indices"].append(hn_idx)
+            #results["hard_negative_embeddings"].append(self.memory_bank[hn_idx])
 
         return results    

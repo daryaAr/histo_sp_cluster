@@ -193,7 +193,7 @@ class MoCoSuperpixelClusterBioptimus(MoCoV2Encoder):
 
             negs = self.cluster_helper.get_negatives_by_cluster(q, q_cluster_ids)
             false_negatives_em = negs["false_negative_embeddings"]
-            hard_negatives_em = negs["queue_without_fn"]
+            hard_negatives_em = negs["hard_negative_embeddings"]
             #false_negatives_in = negs["false_negative_indices"]
             #hard_negatives_in = negs["hard_negative_indices"]
 

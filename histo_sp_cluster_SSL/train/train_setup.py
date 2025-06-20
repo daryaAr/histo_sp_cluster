@@ -128,7 +128,9 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
                     )
                     loss, contrastive_loss, fn_loss, neighbor_loss = criterion(q, k1, k2, hn_em, fn_em)
                     logger.info(f"Loss: {loss.item():.4f}, Contrastive Loss: {contrastive_loss.item():.4f}, Neighbor Loss: {neighbor_loss.item():.4f}, False-Negative Loss: {fn_loss.item():.4f}")
-
+                if hn_em and isinstance(hn_em, list) and all(isinstance(t, torch.Tensor) for t in hn_em):
+                    avg_hn_size = sum(t.size(0) for t in hn_em) / len(hn_em)
+                    logger.info(f"Average hard negative queue size (filtered): {avg_hn_size:.2f}")
             else:
                 raise ValueError(f"Unsupported MoCo type: {cfg.model.moco_type}")
 
@@ -171,8 +173,8 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
                     model.update_queue(k)
             step += 1 
             #data_start_time = time.perf_counter()
-            if batch_idx+1 == 20:
-                break   
+            #if batch_idx+1 == 20:
+             #   break   
 
             torch.cuda.empty_cache()    
 
@@ -212,12 +214,13 @@ def train_moco(cfg, model, dataloader, criterion, loss, writer, run_name):
             save_losses(loss_log, cfg.paths.loss_curve_dir)       
             
 
-        save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.save_model_dir, f"epoch_{epoch}.pth"))
+        save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.save_model_dir, f"epoch_{epoch+1}.pth"))
         
        
         if avg_epoch_loss < best_loss:
+            best_epoch = epoch+1
             best_loss = avg_epoch_loss
-            save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.best_model_dir, f"best_model.pth"), best=True)
+            save_checkpoint(epoch, model, optimizer, scaler, cfg.training.learning_rate, step, os.path.join(cfg.paths.best_model_dir, f"best_model_epoch{best_epoch}.pth"), best=True)
 
     writer.close()
     elapsed = datetime.now() - start_time
