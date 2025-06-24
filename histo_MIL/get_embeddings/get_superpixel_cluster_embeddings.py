@@ -24,7 +24,7 @@ def get_encoder(cfg, checkpoint_path, model):
     encoder.eval()
     return encoder
 
-def get_embeddings(cfg, json_path, model, checkpoint_path, data_type="train", batch_size=512, num_workers=32):
+def get_embeddings(cfg, json_path, model, checkpoint_path, data_type="train", batch_size=512, num_workers=16):
     device = torch.device(cfg.training.device)
 
     # ----- Load JSON -----
@@ -82,7 +82,7 @@ def get_embeddings(cfg, json_path, model, checkpoint_path, data_type="train", ba
     }
 
     # ----- Save -----
-    save_dir = Path(cfg.cptac.embeddings_result) / "superpixel_cluster"
+    save_dir = Path(cfg.cptac.embeddings_result) / "superpixel_cluster_nofn16"
     save_dir.mkdir(parents=True, exist_ok=True)
     save_path = save_dir / f"{data_type}.pt"
     torch.save(result, save_path)
@@ -92,7 +92,7 @@ def get_embeddings(cfg, json_path, model, checkpoint_path, data_type="train", ba
 
 if __name__ == "__main__":
     cfg = load_yaml_config()
-    checkpoint_path = Path(cfg.paths.checkpoint_dir)/"cluster_bioptimus_bs256_lr0.003_epochs100_clusters50_moco_superpixel_cluster_bioptimus"/ "best_model.pth"
+    checkpoint_path = Path(cfg.paths.checkpoint_dir)/"cluster_bioptimus_queue_wo_fn_queue20480_alpha0.01_beta0.005_epochs60_moco_superpixel_cluster_bioptimus"/ "best_model_epoch16.pth"
     model = get_model(cfg, model_type="moco_superpixel_cluster_bioptimus", inference_only=True)
     train_json = Path(cfg.cptac.json_output) / "updated_train.json"
     get_embeddings(
@@ -102,11 +102,11 @@ if __name__ == "__main__":
         checkpoint_path=checkpoint_path,
         data_type="train"
     )
-    test_json = Path(cfg.cptac.json_output) / "updated_test.json"
-    get_embeddings(
-        cfg=cfg,
-        json_path=test_json,
-        model=model,
-        checkpoint_path=checkpoint_path,
-        data_type="test"
-    ) 
+    #test_json = Path(cfg.cptac.json_output) / "updated_test.json"
+    #get_embeddings(
+     #   cfg=cfg,
+      #  json_path=test_json,
+       # model=model,
+        #checkpoint_path=checkpoint_path,
+        #data_type="test"
+    #) 

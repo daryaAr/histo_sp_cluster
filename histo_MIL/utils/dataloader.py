@@ -82,8 +82,9 @@ class GlobalEmbeddingMILWSIDataset(Dataset):
         item = self.data[idx]
         tile_indices = item["tile_indices"]
 
-        if self.max_tiles is not None and len(tile_indices) > self.max_tiles:
-            tile_indices = random.sample(tile_indices, self.max_tiles)
+        if self.max_tiles is not None:
+            if len(tile_indices) > self.max_tiles:
+                tile_indices = random.sample(tile_indices, self.max_tiles)
 
         tile_embeddings = self.embeddings[tile_indices]  # [max_tiles, D]
         label = torch.tensor(item["label"], dtype=torch.long)
@@ -124,8 +125,9 @@ class PackedEmbeddingMILWSIDataset(Dataset):
         # Randomly sample up to max_tiles (e.g., 500)
          
         
-        if self.max_tiles is not None and len(tile_indices) > self.max_tiles:
-            tile_indices = random.sample(tile_indices, self.max_tiles)
+        if self.max_tiles is not None:
+            if len(tile_indices) > self.max_tiles:
+                tile_indices = random.sample(tile_indices, self.max_tiles)
 
         tiles = self.embeddings[tile_indices]  # [num_sampled_tiles, D]
         return tiles, label
@@ -224,7 +226,8 @@ def get_dataset(cfg, metadata_path, embeddings_path):
     if cfg.embeddings.projection:
         project_dim = cfg.embeddings.projection_dim
     else:
-         project_dim = None   
+         project_dim = None  
+    max_tiles = int(cfg.training.bag) if cfg.training.bag is not None else None      
 
     if cfg.embeddings.type == "bioptimus":
         tile_paths = Path(cfg.cptac.embeddings_result) / cfg.embeddings.type / f"{cfg.mil.mode}_tile_paths.pt"
@@ -233,14 +236,14 @@ def get_dataset(cfg, metadata_path, embeddings_path):
             tile_paths_path=tile_paths,
             metadata_path=metadata_path,
             label_mapping=label_mapping,
-            max_tiles=cfg.training.bag
+            max_tiles=max_tiles
         )
     else:
         return PackedEmbeddingMILWSIDataset(
             embedding_file=embeddings_path,
             metadata_path=metadata_path,
             label_mapping=label_mapping,
-            max_tiles=cfg.training.bag
+            max_tiles=max_tiles
         )
 
 

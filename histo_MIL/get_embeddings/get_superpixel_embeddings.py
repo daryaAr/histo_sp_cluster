@@ -13,6 +13,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from histo_MIL.get_embeddings.get_model_inference import get_model
 
+def get_encoder(cfg, checkpoint_path, model):
+    device = cfg.training.device
+    model.to(device)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+    
+    encoder = model.encoder_q
+    encoder.fc = nn.Identity()
+    encoder.eval()
+    return encoder
+
 def get_embeddings(cfg, json_path, model, checkpoint_path, data_type="train", batch_size=64, num_workers=4):
     device = torch.device(cfg.training.device)
 
@@ -53,17 +64,14 @@ def get_embeddings(cfg, json_path, model, checkpoint_path, data_type="train", ba
 
     # ----- Load model -----
     
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-    model.to(device)
-    model.eval()
+    encoder = get_encoder(cfg, checkpoint_path, model)
 
     # ----- Extract embeddings -----
     all_embeddings, all_paths = [], []
     with torch.no_grad():
         for imgs, paths in tqdm(loader, desc=f"Extracting embeddings from {data_type}"):
             imgs = imgs.to(device)
-            feats = model.encoder_q(imgs)
+            feats = encoder(imgs)
             all_embeddings.append(feats.cpu())
             all_paths.extend(paths)
 
@@ -84,7 +92,8 @@ def get_embeddings(cfg, json_path, model, checkpoint_path, data_type="train", ba
 
 if __name__ == "__main__":
     cfg = load_yaml_config()
-    checkpoint_path = Path(cfg.paths.checkpoint_dir)/"no_cluster_bs256_lr0.003_step50_warmup100_epochs100_clusters50_moco_superpixel"/ "best_model.pth"
+    #checkpoint_path = Path(cfg.paths.checkpoint_dir)/"no_cluster_bs256_lr0.003_step50_warmup100_epochs100_clusters50_moco_superpixel"/ "best_model.pth"
+    checkpoint_path = "/mnt/nas7/data/Personal/Darya/Checkpoints/superpixel_org/superpixel_org_checkpoint_epoch_100.pth"
     model = get_model(cfg, model_type="moco_superpixel", inference_only=True)
     train_json = Path(cfg.cptac.json_output) / "updated_train.json"
     get_embeddings(
@@ -94,11 +103,11 @@ if __name__ == "__main__":
         checkpoint_path=checkpoint_path,
         data_type="train"
     )
-    test_json = Path(cfg.cptac.json_output) / "updated_test.json"
-    get_embeddings(
-        cfg=cfg,
-        json_path=test_json,
-        model=model,
-        checkpoint_path=checkpoint_path,
-        data_type="test"
-    ) 
+    #test_json = Path(cfg.cptac.json_output) / "updated_test.json"
+    #get_embeddings(
+     #   cfg=cfg,
+     #   json_path=test_json,
+     #   model=model,
+     #   checkpoint_path=checkpoint_path,
+     #   data_type="test"
+    #) 

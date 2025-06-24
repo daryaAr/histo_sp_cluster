@@ -1,7 +1,10 @@
 import torch
 from tqdm import tqdm
+from torch_lr_finder import LRFinder
+import torch.nn.functional as F
 from torch.cuda.amp import GradScaler, autocast
 from pathlib import Path
+import matplotlib.pyplot as plt
 from histo_MIL.utils.logger import logger
 from histo_MIL.utils.training_utils import (
     save_checkpoint,
@@ -31,13 +34,23 @@ def train_mil(cfg, model, train_loader, val_loader, writer, run_name):
     acc_metric = get_accuracy_metric(num_classes=cfg.model.num_classes)
     f1_metric = get_f1_metric(num_classes=cfg.model.num_classes)
     conf_matrix_metric = get_confusion_matrix_metric(num_classes=cfg.model.num_classes)
-
+    #criterion = torch.nn.CrossEntropyLoss()
     train_losses, val_losses = [], []
     train_accuracies, val_accuracies = [], []
     train_f1s, val_f1s = [], []
     best_val_loss = float("inf")
     patience_counter = 0
     end_epoch = 0
+    #lr_finder = LRFinder(model, optimizer, criterion , device=device)
+
+    #lr_finder.range_test(train_loader, end_lr=1, num_iter=100)
+    #lr_finder.plot(log_lr=True)
+    #plt.savefig(Path(cfg.mil_paths.metric_plot_dir) / "lr_finder_plot.png")
+    #lr_finder.reset() 
+    #suggested_lr = lr_finder.lr_suggestion()
+    #print(f"Suggested LR: {suggested_lr}") 
+    #optimizer = torch.optim.Adam(model.parameters(), lr=suggested_lr) 
+    #cfg.training.learning_rate = suggested_lr    
 
     for epoch in range(cfg.training.epochs):
         logger.info(f"Epoch {epoch + 1}/{cfg.training.epochs} started.")
@@ -50,8 +63,8 @@ def train_mil(cfg, model, train_loader, val_loader, writer, run_name):
             optimizer.zero_grad()
             batch_loss = 0.0
             batch_preds, batch_labels = [], []
-            if batch_idx == 0:
-               print("Shape of first WSI embedding:", bags[0, :lengths[0]].shape) 
+            #if batch_idx == 0:
+             #  print("Shape of first WSI embedding:", bags[0, :lengths[0]].shape) 
 
 
             for i in range(len(bags)):  # Loop over bags in the batch

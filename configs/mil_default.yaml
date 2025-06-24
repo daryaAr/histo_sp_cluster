@@ -1,5 +1,5 @@
 embeddings:
-  type: superpixel_cluster # Options: mocov2, resnet50, bioptimus, superpixel_cluster, superpixel
+  type: superpixel_cluster # Options: mocov2, resnet50, bioptimus, superpixel_cluster, superpixel, superpixel_cluster_wofn_withproj, superpixel_cluster_wofn, superpixel_cluster_wofn_merged
   dim: 2048 # Options: moco=128, resnet50=2048, bioptimus=1536, superpixel+cluster=128, superpixel=128
   projection_dim: 128
   projection: False
@@ -10,23 +10,23 @@ training:
   device: cuda:0
   batch_size: 4
   epochs: 1000
-  learning_rate: 0.0005
-  weight_decay: 1e-4
+  learning_rate: 0.001 #0.0008
+  weight_decay: 1e-3
   optimizer: adam
-  val_split: 0.15
+  val_split: 0.2
   early_stopping: true
-  early_stopping_patience: 20
+  early_stopping_patience: 60
   resume_checkpoint: false
   seed: 42
   num_workers: 16
   pin_memory: true
   prefetch_factor: 2
-  bag: None
+  bag: Null
 
 model:
-  hidden_dim: 256 #go bigger 512
-  attention_dim: 128 #256
-  attention_branches: 1
+  hidden_dim: 256 #go bigger 256
+  attention_dim: 128 #128
+  attention_branches: 2
   num_classes: 3
   dropout: 0.4
 
@@ -42,5 +42,8 @@ mil:
     LUAD: 0
     LSCC: 1
     Normal: 2
+
+visual:
+  select: False   
 
     

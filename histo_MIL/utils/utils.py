@@ -1,8 +1,8 @@
 def build_run_name(cfg):
     if cfg.training.bag is not None:
-        return f"MIL_{cfg.embeddings.type}_{cfg.mil.mode}_{cfg.embeddings.dim}_lr{cfg.training.learning_rate}_bs{cfg.training.batch_size}_bag{cfg.training.bag}"
+        return f"MIL_{cfg.embeddings.type}_{cfg.mil.mode}_{cfg.embeddings.dim}_lr{cfg.training.learning_rate}_bs{cfg.training.batch_size}_wdecay{cfg.training.weight_decay}_bag{cfg.training.bag}"
     else:
-        return f"MIL_{cfg.embeddings.type}_{cfg.mil.mode}_{cfg.embeddings.dim}_lr{cfg.training.learning_rate}_bs{cfg.training.batch_size}_no_limit"
+        return f"MIL_{cfg.embeddings.type}_{cfg.mil.mode}_{cfg.embeddings.dim}_lr{cfg.training.learning_rate}_bs{cfg.training.batch_size}_wdecay{cfg.training.weight_decay}_no_limit"
 
 def set_embedding_dim(cfg):
     """
@@ -21,6 +21,10 @@ def set_embedding_dim(cfg):
         "mocov2": 2048,
         "superpixel_cluster": 2048,
         "superpixel": 2048,
+        "superpixel_cluster_wofn_withproj": 128,
+        "superpixel_cluster_wofn": 2048,
+        "superpixel_cluster_wofn_merged": 2048
+
     }
 
     embedding_type = cfg.embeddings.type.lower()

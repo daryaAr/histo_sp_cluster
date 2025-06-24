@@ -22,7 +22,7 @@ if __name__ == "__main__":
     
 
     cfg.embeddings.type = safe_input(
-        "Enter embedding type (resnet50 / bioptimus / mocov2 / superpixel_cluster / superpixel)",
+        "Enter embedding type (resnet50 / bioptimus / mocov2 / superpixel_cluster / superpixel / superpixel_cluster_wofn / superpixel_cluster_wofn_withproj / superpixel_cluster_wofn_merged)",
         cfg.embeddings.get("type", "bioptimus"),
         str
     )
@@ -78,7 +78,7 @@ if __name__ == "__main__":
     train_loader, val_loader = get_train_val_loaders(
         cfg,
         Path(cfg.mil_paths.data_json) / "updated_train.json",
-        Path(cfg.cptac.embeddings_result) / cfg.embeddings.type / f"{cfg.mil.mode}.pt"
+        Path(cfg.cptac.embeddings_result) / cfg.embeddings.type / "train.pt" #"superpixel_cluster_wofn" / "train.pt"
     )
     writer = SummaryWriter(log_dir=cfg.mil_paths.tensorboard_dir)
 

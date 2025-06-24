@@ -21,7 +21,7 @@ def get_resnet_weights(base_encoder):
     }
     return resnet_weights_map.get(base_encoder.lower(), None)
 
-def build_resnet_with_projection(base_encoder, output_dim, pretrained=False):
+def build_resnet_with_projection(base_encoder, output_dim, pretrained=True):
     weights = get_resnet_weights(base_encoder) if pretrained else None
     encoder = getattr(models, base_encoder)(weights=weights)
     hidden_dim = encoder.fc.in_features
